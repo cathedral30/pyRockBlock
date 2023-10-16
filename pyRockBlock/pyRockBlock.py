@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta
 from serial import Serial, SerialException
+import time
 import logging
 
 
 class RockBlockException(Exception):
     pass
 
+class RockBlockSignalException(RockBlockException):
+    pass
 
 class RockBlock:
 
@@ -70,12 +73,29 @@ class RockBlock:
             return self.read_next()
         raise RockBlockException("Exception getting imei, unexpected Serial state")
 
-    @property
-    def system_time(self) -> datetime:
-        if self.write_line_echo("AT-MSSTM"):
-            command, response = self.read_next().split(" ", 1)
-            if response == "no network service":
-                raise RockBlockException("Could not get system time due to no connection service")
-            else:
-                response_int = int(response, 16)
-                return RockBlock.IRIDIUM_EPOCH + timedelta(milliseconds=response_int * 90)
+    def get_iridium_datetime(self, retry=5) -> datetime:
+        self.write_line("AT-MSSTM")
+        if self.read_next() == "OK":
+            if self.read_next() == "AT-MSSTM":
+                command, response = self.read_next().split(" ", 1)
+                if response == "no network service":
+                    if retry > 0:
+                        self.logger.warning("No signal... retrying")
+                        time.sleep(1)
+                        return self.get_iridium_datetime(retry - 1)
+                    else:
+                        raise RockBlockSignalException("Could not get system time due to no signal")
+                else:
+                    response_int = int(response, 16)
+                    return RockBlock.IRIDIUM_EPOCH + timedelta(milliseconds=response_int * 90)
+        raise RockBlockException("Exception getting system time, unexpected Serial state")
+
+    def _queue_text(self, message: str) -> bool:
+        if len(message) <= 120:
+            command = "AT+SBDWT=" + message
+            if self.write_line_echo(command):
+                if self.read_next() == "OK":
+                    return True
+        else:
+            self.logger.error("Messages must be fewer than 120 bytes")
+            return False
