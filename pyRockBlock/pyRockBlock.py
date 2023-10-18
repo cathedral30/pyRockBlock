@@ -74,20 +74,19 @@ class RockBlock:
         raise RockBlockException("Exception getting imei, unexpected Serial state")
 
     def get_iridium_datetime(self, retry=5) -> datetime:
-        self.write_line("AT-MSSTM")
-        if self.read_next() == "OK":
-            if self.read_next() == "AT-MSSTM":
-                command, response = self.read_next().split(" ", 1)
-                if response == "no network service":
-                    if retry > 0:
-                        self.logger.warning("No signal... retrying")
-                        time.sleep(1)
-                        return self.get_iridium_datetime(retry - 1)
-                    else:
-                        raise RockBlockSignalException("Could not get system time due to no signal")
+        if self.write_line_echo("AT-MSSTM"):
+            command, response = self.read_next().split(" ", 1)
+            if response == "no network service":
+                self.read_next()
+                if retry > 0:
+                    self.logger.warning("No signal... retrying")
+                    time.sleep(1)
+                    return self.get_iridium_datetime(retry - 1)
                 else:
-                    response_int = int(response, 16)
-                    return RockBlock.IRIDIUM_EPOCH + timedelta(milliseconds=response_int * 90)
+                    raise RockBlockSignalException("Could not get system time due to no signal")
+            else:
+                response_int = int(response, 16)
+                return RockBlock.IRIDIUM_EPOCH + timedelta(milliseconds=response_int * 90)
         raise RockBlockException("Exception getting system time, unexpected Serial state")
 
     def _queue_text(self, message: str) -> bool:
