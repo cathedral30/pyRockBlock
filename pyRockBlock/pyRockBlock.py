@@ -7,8 +7,52 @@ import logging
 class RockBlockException(Exception):
     pass
 
+
 class RockBlockSignalException(RockBlockException):
     pass
+
+
+class SessionResponse:
+
+    STATUS_CODES = {
+        0: "MO Success",
+        1: "MO Success, MT too big for transfer",
+        2: "MO Success, location update not accepted",
+        3: "MO Success",
+        4: "MO Success",
+        5: "MO Failure",
+        6: "MO Failure",
+        7: "MO Failure",
+        8: "MO Failure",
+        9: "Unknown",
+        10: "GSS reports call did not complete in allowed time",
+        11: "MO message queue full at GSS",
+        12: "MO message has too many segments",
+        13: "GSS reports session did not complete",
+        14: "Invalid segment size",
+        15: "Access is denied",
+        16: "ISU has been locked and may not make SBD calls",
+        17: "Gateway not responding",
+        18: "Connection lost",
+        19: "Link failure",
+        32: "No network service",
+        33: "Antenna fault",
+        34: "Radio is disabled",
+        35: "ISU is busy",
+        36: "Try later, must wait 3 minutes since last registration",
+        37: "SBD service is temporarily disabled",
+        38: "Try later, traffic management period",
+        64: "Band violation",
+        65: "PLL lock failure, hardware error during attempted transmit"
+    }
+
+    @classmethod
+    def get_status_message(cls, code: int):
+        try:
+            return cls.STATUS_CODES[code]
+        except IndexError:
+            return "Failure (reserved)"
+
 
 class RockBlock:
 
