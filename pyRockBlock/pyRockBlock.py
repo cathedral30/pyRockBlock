@@ -14,7 +14,7 @@ class RockBlockSignalException(RockBlockException):
 
 class SessionResponse:
 
-    STATUS_CODES = {
+    MO_STATUS_CODES = {
         0: "MO Success",
         1: "MO Success, MT too big for transfer",
         2: "MO Success, location update not accepted",
@@ -46,12 +46,46 @@ class SessionResponse:
         65: "PLL lock failure, hardware error during attempted transmit"
     }
 
+    MT_STATUS_CODES = {
+        0: "No SBD message to receive from the GSS",
+        1: "SBD message successfully received from the GSS",
+        2: "An error occurred while attempting to perform a mailbox check or receive a message from the GSS"
+    }
+
     @classmethod
-    def get_status_message(cls, code: int):
-        try:
-            return cls.STATUS_CODES[code]
-        except IndexError:
-            return "Failure (reserved)"
+    def get_status_message(cls, code: int, mo=True):
+        if mo:
+            try:
+                return cls.MO_STATUS_CODES[code]
+            except IndexError:
+                return "Failure (reserved)"
+        else:
+            return cls.MT_STATUS_CODES[code]
+
+    def __init__(self, response: str):
+
+        response_values = response.split(",")
+
+        self.mo_status_code = int(response_values[0])
+        self.momsn = response_values[1]
+        self.mt_status_code = int(response_values[2])
+        self.mtmsn = response_values[3]
+        self.mt_length = int(response_values[4])
+        self.mt_queued = int(response_values[5])
+
+    @property
+    def mo_status(self) -> str:
+        return self.get_status_message(self.mo_status_code)
+
+    @property
+    def mt_status(self) -> str:
+        return self.get_status_message(self.mt_status_code, mo=False)
+
+    @property
+    def mo_success(self) -> bool:
+        if self.mo_status_code < 5:
+            return True
+        return False
 
 
 class RockBlock:
@@ -133,7 +167,7 @@ class RockBlock:
                 return RockBlock.IRIDIUM_EPOCH + timedelta(milliseconds=response_int * 90)
         raise RockBlockException("Exception getting system time, unexpected Serial state")
 
-    def _queue_text(self, message: str) -> bool:
+    def queue_text(self, message: str) -> bool:
         if len(message) <= 120:
             command = "AT+SBDWT=" + message
             if self.write_line_echo(command):
@@ -142,3 +176,35 @@ class RockBlock:
         else:
             self.logger.error("Messages must be fewer than 120 bytes")
             return False
+
+    def queue_bytes(self, message: str) -> bool:
+        if 1 > len(message) > 340:
+            raise RockBlockException("Invalid number of bytes to send")
+
+        if self.write_line_echo("AT+SBDWB=" + str(len(message))):
+
+            if self.read_next() == "READY":
+                checksum = 0
+
+                for c in message:
+                    checksum += ord(c)
+
+                command_bytes = message.encode() + bytes([checksum >> 8]) + bytes([checksum & 0xFF])
+                self.s.write(command_bytes)
+                if self.read_next() == "0" and self.read_next() == "OK":
+                    return True
+                else:
+                    return False
+        raise RockBlockException("Exception writing bytes to buffer, unexpected serial state")
+
+    def initiate_session(self) -> SessionResponse:
+        if self.write_line_echo("AT+SBDIX"):
+            response = self.read_next().replace(" ", "").split(":")
+            if len(response) == 2 and response[0] == "+SBDIX":
+                return SessionResponse(response[1])
+        raise RockBlockException("Exception during SBD session, unexpected serial state")
+
+    def send_text(self, message: str) -> SessionResponse:
+        if self.queue_text(message):
+            return self.initiate_session()
+        raise RockBlockException("Exception writing text to buffer, unexpected serial state")
