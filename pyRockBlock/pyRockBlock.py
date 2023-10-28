@@ -13,6 +13,7 @@ class RockBlockSignalException(RockBlockException):
 
 
 class SessionResponse:
+    """Stores the result of an attempted GSS session."""
 
     MO_STATUS_CODES = {
         0: "MO Success",
@@ -53,7 +54,7 @@ class SessionResponse:
     }
 
     @classmethod
-    def get_status_message(cls, code: int, mo=True):
+    def _get_status_message(cls, code: int, mo=True):
         if mo:
             try:
                 return cls.MO_STATUS_CODES[code]
@@ -75,20 +76,24 @@ class SessionResponse:
 
     @property
     def mo_status(self) -> str:
-        return self.get_status_message(self.mo_status_code)
+        """Returns the status message for the MO transaction."""
+        return self._get_status_message(self.mo_status_code)
 
     @property
     def mt_status(self) -> str:
-        return self.get_status_message(self.mt_status_code, mo=False)
+        """Returns the status message for the MT transaction."""
+        return self._get_status_message(self.mt_status_code, mo=False)
 
     @property
     def mo_success(self) -> bool:
+        """Returns true if MO data was successfully sent to the GSS."""
         if self.mo_status_code < 5:
             return True
         return False
 
 
 class RockBlock:
+    """Represents a connected RockBLOCK serial device."""
 
     IRIDIUM_EPOCH = datetime.fromisoformat("2014-05-11T14:23:55")
 
@@ -102,6 +107,12 @@ class RockBlock:
         return self.s.readline().decode().strip()
 
     def read_next(self) -> str:
+        """
+        Waits for and then returns the next non-empty line from the serial interface.
+
+        :returns: the next message received.
+        :rtype: str
+        """
         response = self._read()
         while response is None or len(response) == 0:
             response = self._read()
@@ -109,17 +120,45 @@ class RockBlock:
         return response
 
     def write(self, command: str):
+        """
+        Writes text to the serial interface.
+
+        :param command: The text to write.
+        :type command: str
+        """
         self.logger.info("<- " + command)
         self.s.write(command.encode())
 
     def write_line(self, command: str):
+        """
+        Writes text to the serial interface followed by a return character to denote the end of a command.
+
+        :param command: The text to write.
+        :type command: str
+        """
         self.write(command + "\r")
 
     def write_line_echo(self, command: str) -> bool:
+        """
+        Writes text to the serial interface followed by a return character, then waits for an echo from the device.
+
+        :param command: The text to write.
+        :type command: str
+
+        :returns: true if an echo of the message is received.
+        :rtype: bool
+        """
         self.write_line(command)
         return self.read_next() == command
 
     def check_serial_connection(self) -> bool:
+        """
+        Checks if the RockBLOCK is still responding to messages via the serial interface by sending 'AT' and checking
+        for an echo.
+
+        :returns: true if the RockBLOCK is still connected to the serial interface.
+        :rtype: bool
+        """
         if self.s is not None:
             self.s.flush()
             if self.write_line_echo("AT"):
@@ -128,6 +167,12 @@ class RockBlock:
         return False
 
     def connect(self) -> bool:
+        """
+        Attempts to connect to the RockBLOCK via the serial interface.
+
+        :returns: true if connection is successful
+        :rtype: bool
+        """
         try:
             self.s = Serial(self.port, 19200, self.timeout)
             return self.check_serial_connection()
@@ -135,11 +180,18 @@ class RockBlock:
             raise RockBlockException(e)
 
     def disconnect(self):
+        """Disconnects the serial connection to the RockBLOCK."""
         self.s.close()
         self.s = None
 
     @property
     def signal_quality(self) -> int:
+        """
+        Checks the network signal quality.
+
+        :returns: integer 0-5 representing the number of ISU signal bars.
+        :rtype: int
+        """
         if self.write_line_echo("AT+CSQ"):
             output = self.read_next()
             return int(output[-1])
@@ -147,11 +199,23 @@ class RockBlock:
 
     @property
     def imei(self) -> str:
+        """
+        Gets the IMEI of the RockBLOCK modem.
+
+        :returns: the IMEI.
+        :rtype: str
+        """
         if self.write_line_echo("AT+CGSN"):
             return self.read_next()
         raise RockBlockException("Exception getting imei, unexpected Serial state")
 
     def get_iridium_datetime(self, retry=5) -> datetime:
+        """
+        Gets the current Iridium SBD network datetime (UTC).
+
+        :returns: the GSS datetime.
+        :rtype: datetime
+        """
         if self.write_line_echo("AT-MSSTM"):
             command, response = self.read_next().split(" ", 1)
             if response == "no network service":
@@ -168,6 +232,15 @@ class RockBlock:
         raise RockBlockException("Exception getting system time, unexpected Serial state")
 
     def queue_text(self, message: str) -> bool:
+        """
+        Write text to the RockBLOCK MO buffer.
+
+        :param message: Text to be written.
+        :type message: str
+
+        :returns: true if the text is successfully written.
+        :rtype: bool
+        """
         if len(message) <= 120:
             command = "AT+SBDWT=" + message
             if self.write_line_echo(command):
@@ -178,6 +251,15 @@ class RockBlock:
             return False
 
     def queue_bytes(self, message: str) -> bool:
+        """
+        Write utf8 bytes to the RockBLOCK MO buffer.
+
+        :param message: The message to be written as bytes.
+        :type message: str
+
+        :returns: true if the message is successfully written.
+        :rtype: bool
+        """
         if 1 > len(message) > 340:
             raise RockBlockException("Invalid number of bytes to send")
 
@@ -198,6 +280,12 @@ class RockBlock:
         raise RockBlockException("Exception writing bytes to buffer, unexpected serial state")
 
     def initiate_session(self) -> SessionResponse:
+        """
+        Attempts to contact the GSS, sending anything in the MO buffer and receiving MT messages.
+
+        :returns: the response from the GSS.
+        :rtype: SessionResponse
+        """
         if self.write_line_echo("AT+SBDIX"):
             response = self.read_next().replace(" ", "").split(":")
             if len(response) == 2 and response[0] == "+SBDIX":
@@ -205,6 +293,15 @@ class RockBlock:
         raise RockBlockException("Exception during SBD session, unexpected serial state")
 
     def send_text(self, message: str) -> SessionResponse:
+        """
+        Writes the message to the RockBLOCK MO buffer and then attempts to send to the GSS.
+
+        :param message: Text to be sent.
+        :type message: str
+
+        :returns: the response from the GSS. (This will contain any available MT messages also)
+        :rtype: SessionResponse
+        """
         if self.queue_text(message):
             return self.initiate_session()
         raise RockBlockException("Exception writing text to buffer, unexpected serial state")
