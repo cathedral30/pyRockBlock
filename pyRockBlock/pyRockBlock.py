@@ -106,6 +106,9 @@ class RockBlock:
     def _read(self) -> str:
         return self.s.readline().decode().strip()
 
+    def _read_bytes(self) -> bytes:
+        return self.s.readline()
+
     def read_next(self) -> str:
         """
         Waits for and then returns the next non-empty line from the serial interface.
@@ -289,7 +292,9 @@ class RockBlock:
         if self.write_line_echo("AT+SBDIX"):
             response = self.read_next().replace(" ", "").split(":")
             if len(response) == 2 and response[0] == "+SBDIX":
-                return SessionResponse(response[1])
+                session_response = SessionResponse(response[1])
+                self.read_next()
+                return session_response
         raise RockBlockException("Exception during SBD session, unexpected serial state")
 
     def send_text(self, message: str) -> SessionResponse:
@@ -305,3 +310,26 @@ class RockBlock:
         if self.queue_text(message):
             return self.initiate_session()
         raise RockBlockException("Exception writing text to buffer, unexpected serial state")
+
+    def read_bytes(self) -> bytes:
+        """
+        Reads bytes from the RockBLOCK MT buffer.
+        :return: the bytes.
+        :rtype: bytes
+        """
+        self.write_line("AT+SBDRB")
+        output = self._read_bytes()
+        if self.read_next() == "OK":
+            return output[15:]
+
+    def read_text(self) -> str:
+        """
+        Reads text from the RockBLOCK MT buffer.
+        :return: the text.
+        :rtype: str
+        """
+        self.write_line("AT+SBDRT")
+        output = self.read_next()
+        self.read_next()
+        if self.read_next() == "OK":
+            return output[8:]
