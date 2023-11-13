@@ -1,3 +1,7 @@
 main.py
 .idea
 .DS_Store
+docs/build
+dist
+pyRockBlock.egg-info
+pyRockBlock/__pycache__/
