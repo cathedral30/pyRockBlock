@@ -7,6 +7,6 @@ setup(
     url='https://github.com/cathedral30/pyRockBlock',
     license='',
     author='Henry Cooper',
-    author_email='henry.cooper@gmail.com',
+    author_email='cooper.henry30@gmail.com',
     description='The definitive RockBLOCK Python 3 package.'
 )

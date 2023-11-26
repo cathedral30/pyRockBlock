@@ -31,3 +31,32 @@ pyRockBlock can be installed from PyPI::
 Connecting to your RockBLOCK
 ============================
 
+Once your rockBLOCK has been connected to your device via USB you will need to find its local address.
+
+Linux / macOS
+-------------
+
+List all local devices::
+
+    ls /dev/tty*
+
+The name will vary depending on machine but will generally include USB in the name (e.g. ``/dev/ttyUSB0`` or ``/dev/tty.usbserial-FTH9I1S5``)
+
+Windows
+----------
+
+List COM devices::
+
+    mode
+
+When connected to my machine the port was ``COM6`` but this will vary, it can be helpful to run the command before connecting to see what port becomes active.
+
+Starting pyRockBLOCK
+--------------------
+
+Once you have the address of your device, create an instance of RockBlock and call the connect method::
+
+    from pyRockBlock import RockBlock
+
+    rb = RockBlock(<device address>)
+    rb.connect()
