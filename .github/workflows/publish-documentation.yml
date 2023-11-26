@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  sphinx:
 
     runs-on: ubuntu-latest
 
