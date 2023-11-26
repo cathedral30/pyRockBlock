@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from serial import Serial, SerialException
-import time
 import logging
 
 
@@ -333,3 +332,14 @@ class RockBlock:
         self.read_next()
         if self.read_next() == "OK":
             return output[8:]
+
+    def set_radio_activity(self, enabled: bool) -> bool:
+        """
+        Disables or Enables radio activity to save power and reduce signature
+        :param enabled: if radio should be active.
+        :return:
+        """
+        self.write_line_echo("AT*R" + str(int(enabled)))
+        if self.read_next() == "OK":
+            return True
+        return False
