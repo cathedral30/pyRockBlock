@@ -2,9 +2,9 @@ from setuptools import setup
 
 setup(
     name='pyRockBlock',
-    version='1.0.2',
+    version='1.0.3',
     packages=['pyRockBlock'],
-    url='https://cathedral30.github.io/pyRockBlock/',
+    url='https://github.com/cathedral30/pyRockBlock',
     license='',
     author='Henry Cooper',
     author_email='cooper.henry30@gmail.com',
