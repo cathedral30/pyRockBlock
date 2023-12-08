@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='pyRockBlock',
-    version='1.0.1',
+    version='1.0.2',
     packages=['pyRockBlock'],
     url='https://cathedral30.github.io/pyRockBlock/',
     license='',
