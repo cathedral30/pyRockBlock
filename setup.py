@@ -8,5 +8,6 @@ setup(
     license='',
     author='Henry Cooper',
     author_email='cooper.henry30@gmail.com',
-    description='The definitive RockBLOCK Python 3 package.'
+    description='The definitive RockBLOCK Python 3 package.',
+    long_description=open('README.rst').read()
 )
