@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from serial import Serial, SerialException
 import logging
+import time
 
 
 class RockBlockException(Exception):
