@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from serial import Serial, SerialException
 import logging
+import time
 
 
 class RockBlockException(Exception):
@@ -101,6 +102,8 @@ class RockBlock:
         self.s = None
         self.timeout = timeout
         self.logger = logging.getLogger("RockBlock")
+        self._modem = None
+        self._imei = None
 
     def _read(self) -> str:
         return self.s.readline().decode().strip()
@@ -207,9 +210,25 @@ class RockBlock:
         :returns: the IMEI.
         :rtype: str
         """
-        if self.write_line_echo("AT+CGSN"):
-            return self.read_next()
-        raise RockBlockException("Exception getting imei, unexpected Serial state")
+        if self._imei is None:
+            self.write_line_echo("AT+CGSN")
+            imei = self.read_next()
+            if self.read_next() == "OK":
+                self._imei = imei
+                return imei
+        else:
+            return self._imei
+
+    @property
+    def modem(self) -> str:
+        if self._modem is None:
+            self.write_line_echo("AT+CGMM")
+            modem = self.read_next()
+            if self.read_next() == "OK":
+                self._modem = modem
+                return modem
+        else:
+            return self._modem
 
     def get_iridium_datetime(self, retry=5) -> datetime:
         """
@@ -343,3 +362,9 @@ class RockBlock:
         if self.read_next() == "OK":
             return True
         return False
+
+    def test_command(self, command):
+        self.write_line(command)
+        self.read_next()
+        self.read_next()
+        self.read_next()
