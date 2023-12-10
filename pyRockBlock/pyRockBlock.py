@@ -288,6 +288,7 @@ class RockBlock:
         else:
             self.logger.error("Messages must be fewer than 120 bytes")
             return False
+        raise RockBlockException("Exception queueing text")
 
     def queue_bytes(self, message: str) -> bool:
         """
@@ -357,6 +358,7 @@ class RockBlock:
         output = self._read_bytes()
         if self.read_next() == "OK":
             return output[15:]
+        raise RockBlockException("Exception reading bytes from MT buffer")
 
     def read_text(self) -> str:
         """
@@ -369,17 +371,17 @@ class RockBlock:
         self.read_next()
         if self.read_next() == "OK":
             return output[8:]
+        raise RockBlockException("Exception reading text from MT buffer")
 
-    def set_radio_activity(self, enabled: bool) -> bool:
+    def set_radio_activity(self, enabled: bool):
         """
         Disables or Enables radio activity to save power and reduce signature
         :param enabled: if radio should be active.
-        :return:
         """
         self.write_line_echo("AT*R" + str(int(enabled)))
         if self.read_next() == "OK":
-            return True
-        return False
+            return
+        raise RockBlockException("Exception attempting to set radio activity")
 
     def set_energy_used(self, energy: int):
         """
@@ -428,9 +430,3 @@ class RockBlock:
             if self.read_next() == "OK":
                 return status
         raise RockBlockException("Failed to get SBD status")
-
-    def test_command(self, command):
-        self.write_line(command)
-        self.read_next()
-        self.read_next()
-        self.read_next()

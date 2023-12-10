@@ -6,7 +6,7 @@ project_urls = {
 
 setup(
     name='pyRockBlock',
-    version='1.0.4',
+    version='1.0.5',
     packages=['pyRockBlock'],
     url='https://github.com/cathedral30/pyRockBlock',
     license='',
