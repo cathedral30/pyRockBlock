@@ -351,7 +351,8 @@ class RockBlock:
     def read_bytes(self) -> bytes:
         """
         Reads bytes from the RockBLOCK MT buffer.
-        :return: the bytes.
+
+        :returns: all bytes in buffer
         :rtype: bytes
         """
         self.write_line("AT+SBDRB")
@@ -363,7 +364,8 @@ class RockBlock:
     def read_text(self) -> str:
         """
         Reads text from the RockBLOCK MT buffer.
-        :return: the text.
+
+        :returns: all text in buffer
         :rtype: str
         """
         self.write_line("AT+SBDRT")
@@ -376,7 +378,8 @@ class RockBlock:
     def set_radio_activity(self, enabled: bool):
         """
         Disables or Enables radio activity to save power and reduce signature
-        :param enabled: if radio should be active.
+
+        :param enabled: if radio should be active
         """
         self.write_line_echo("AT*R" + str(int(enabled)))
         if self.read_next() == "OK":
@@ -386,9 +389,9 @@ class RockBlock:
     def set_energy_used(self, energy: int):
         """
         Preset the energy accumulator value.
-        :param energy: energy value in microamp hours.
+
+        :param energy: energy value in microamp hours
         :type energy: int
-        :return:
         """
         if self.write_line_echo("AT+GEMON=" + str(energy)):
             if self.read_next() == "OK":
@@ -398,7 +401,8 @@ class RockBlock:
     def get_energy_used(self) -> int:
         """
         Get accumulated energy used.
-        :return: energy used in microamp hours.
+
+        :returns: energy used in microamp hours
         :rtype: int
         """
         if self.write_line_echo("AT+GEMON"):
@@ -411,6 +415,7 @@ class RockBlock:
     def clear_buffer(self, clear: BufferClear):
         """
         Clear messages from the MO or MT buffer
+
         :param clear: MO, MT or MO_MT
         :type clear: BufferClear
         """
@@ -422,7 +427,8 @@ class RockBlock:
     def get_status(self) -> SbdStatus:
         """
         Get the status of the SBD modem
-        :return: The SBD status
+
+        :returns: The SBD status
         :rtype: SbdStatus
         """
         if self.write_line_echo("AT+SBDS"):
