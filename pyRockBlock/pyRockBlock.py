@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from serial import Serial, SerialException
+from enum import Enum
 import logging
 import time
 
@@ -92,10 +93,27 @@ class SessionResponse:
         return False
 
 
+class SbdStatus:
+    """
+    Stores result from SBD status requests
+    """
+    def __init__(self, response: str):
+        s_response = response.split(", ")
+        self.buffer_mo = bool(int(s_response[0].split(" ")[1]))
+        self.momsn = int(s_response[1])
+        self.buffer_mt = bool(int(s_response[2]))
+        self.mtmsn = int(s_response[3])
+
+
 class RockBlock:
     """Represents a connected RockBLOCK serial device."""
 
     IRIDIUM_EPOCH = datetime.fromisoformat("2014-05-11T14:23:55")
+
+    class BufferClear(Enum):
+        MO = 0
+        MT = 1
+        MO_MT = 2
 
     def __init__(self, port, timeout=5):
         self.port = port
@@ -362,6 +380,54 @@ class RockBlock:
         if self.read_next() == "OK":
             return True
         return False
+
+    def set_energy_used(self, energy: int):
+        """
+        Preset the energy accumulator value.
+        :param energy: energy value in microamp hours.
+        :type energy: int
+        :return:
+        """
+        if self.write_line_echo("AT+GEMON=" + str(energy)):
+            if self.read_next() == "OK":
+                return
+        raise RockBlockException("Failed to set energy used")
+
+    def get_energy_used(self) -> int:
+        """
+        Get accumulated energy used.
+        :return: energy used in microamp hours.
+        :rtype: int
+        """
+        if self.write_line_echo("AT+GEMON"):
+            response = self.read_next().split(":")
+
+            if self.read_next() == "OK" and response[0] == "+GEMON":
+                return int(response[1])
+        raise RockBlockException("Failed to get energy used")
+
+    def clear_buffer(self, clear: BufferClear):
+        """
+        Clear messages from the MO or MT buffer
+        :param clear: MO, MT or MO_MT
+        :type clear: BufferClear
+        """
+        if self.write_line_echo("AT+SBDD" + str(clear.value)):
+            if self.read_next() == "0" and self.read_next() == "OK":
+                return
+        raise RockBlockException("Failed to clear buffer")
+
+    def get_status(self) -> SbdStatus:
+        """
+        Get the status of the SBD modem
+        :return: The SBD status
+        :rtype: SbdStatus
+        """
+        if self.write_line_echo("AT+SBDS"):
+            status = SbdStatus(self.read_next())
+            if self.read_next() == "OK":
+                return status
+        raise RockBlockException("Failed to get SBD status")
 
     def test_command(self, command):
         self.write_line(command)
