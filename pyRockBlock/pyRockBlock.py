@@ -372,7 +372,7 @@ class RockBlock:
         output = self.read_next()
         self.read_next()
         if self.read_next() == "OK":
-            return output[8:]
+            return output[6:]
         raise RockBlockException("Exception reading text from MT buffer")
 
     def set_radio_activity(self, enabled: bool):
